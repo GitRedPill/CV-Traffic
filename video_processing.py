@@ -1,3 +1,5 @@
+import os
+os.environ['LIBGL_ALWAYS_SOFTWARE'] = '1'
 import cv2
 import os
 

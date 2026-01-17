@@ -1,3 +1,5 @@
+import os
+os.environ['LIBGL_ALWAYS_SOFTWARE'] = '1'
 import streamlit as st
 import tempfile
 import os

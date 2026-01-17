@@ -1,21 +1,37 @@
-from ultralytics import YOLO
 import cv2
+import numpy as np
 
-# Load YOLO model (YOLOv8n is lightweight)
-model = YOLO('yolov8n.pt')  # Will download if not present
+# Create background subtractor
+subtractor = cv2.createBackgroundSubtractorMOG2(history=100, varThreshold=50, detectShadows=True)
 
 def detect_vehicles(frame_path):
     """
-    Detect vehicles in a frame using YOLO.
+    Detect vehicles using background subtraction.
     Returns count of vehicles and annotated frame.
-    Vehicles: car, truck, bus, motorbike.
     """
     frame = cv2.imread(frame_path)
-    results = model(frame, classes=[2, 3, 5, 7])  # COCO classes: 2=car, 3=motorcycle, 5=bus, 7=truck
+    if frame is None:
+        return 0, None
 
-    vehicle_count = len(results[0].boxes) if results[0].boxes else 0
+    # Apply background subtraction
+    fg_mask = subtractor.apply(frame)
 
-    # Annotate frame
-    annotated_frame = results[0].plot()
+    # Clean up the mask
+    kernel = np.ones((5,5), np.uint8)
+    fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_OPEN, kernel)
+    fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_CLOSE, kernel)
+
+    # Find contours
+    contours, _ = cv2.findContours(fg_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    vehicle_count = 0
+    annotated_frame = frame.copy()
+
+    for contour in contours:
+        area = cv2.contourArea(contour)
+        if area > 500:  # Minimum area for vehicle
+            x, y, w, h = cv2.boundingRect(contour)
+            cv2.rectangle(annotated_frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+            vehicle_count += 1
 
     return vehicle_count, annotated_frame
